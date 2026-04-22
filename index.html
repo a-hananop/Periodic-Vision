@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Interactive Periodic Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loading">
+  <div class="load-ring"></div>
+  <div class="load-text">INITIALIZING ELEMENTS</div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">⚛ <span>PERIODIC TABLE</span></div>
+
+  <nav class="vtabs" id="vtabs">
+    <button class="vtab active" data-view="table">table</button>
+    <button class="vtab" data-view="sphere">sphere</button>
+    <button class="vtab" data-view="helix">helix</button>
+    <button class="vtab" data-view="grid">grid</button>
+    <button class="vtab" data-view="wave">wave</button>
+    <button class="vtab" data-view="cylinder">cylinder</button>
+    <button class="vtab" data-view="scatter">scatter</button>
+    <button class="vtab" data-view="pyramid">pyramid</button>
+  </nav>
+
+  <div class="hdr-right">
+    <div class="search-box">
+      <span class="s-icon">⌕</span>
+      <input id="search" type="text" placeholder="element, symbol, #…" autocomplete="off"/>
+    </div>
+    <button id="spin-btn" class="ctrl-btn" title="Toggle spin (Space)">⏸ spin</button>
+    <button id="reset-btn" class="ctrl-btn" title="Reset view">↺</button>
+  </div>
+</header>
+
+<!-- STAGE: all views rendered here -->
+<main id="stage">
+  <!-- TABLE VIEW -->
+  <section id="v-table" class="view active">
+    <div id="table-grid"></div>
+  </section>
+
+  <!-- 3-D CANVAS VIEW (shared by sphere/helix/grid/wave/cylinder/scatter/pyramid) -->
+  <section id="v-3d" class="view">
+    <canvas id="star-canvas"></canvas>
+    <div id="scene-wrap">
+      <div id="scene"></div>
+    </div>
+    <div class="view-label" id="view-label">sphere</div>
+    <div class="controls-hint">drag · scroll zoom · space</div>
+  </section>
+</main>
+
+<!-- BOTTOM PANEL -->
+<footer id="bottom">
+  <!-- Legend shown in table view -->
+  <div id="legend" class="bot-panel">
+    <button class="cat-btn active" data-cat="all"><span class="cdot" style="background:#999"></span>All</button>
+    <button class="cat-btn" data-cat="alkali-metal"><span class="cdot" style="background:#e74c3c"></span>Alkali</button>
+    <button class="cat-btn" data-cat="alkaline-earth"><span class="cdot" style="background:#e67e22"></span>Alkaline Earth</button>
+    <button class="cat-btn" data-cat="transition-metal"><span class="cdot" style="background:#27ae60"></span>Transition</button>
+    <button class="cat-btn" data-cat="post-transition"><span class="cdot" style="background:#1abc9c"></span>Post-Trans</button>
+    <button class="cat-btn" data-cat="metalloid"><span class="cdot" style="background:#9b59b6"></span>Metalloid</button>
+    <button class="cat-btn" data-cat="nonmetal"><span class="cdot" style="background:#3498db"></span>Non-Metal</button>
+    <button class="cat-btn" data-cat="halogen"><span class="cdot" style="background:#d4ac0d"></span>Halogen</button>
+    <button class="cat-btn" data-cat="noble-gas"><span class="cdot" style="background:#7fb3c8"></span>Noble Gas</button>
+    <button class="cat-btn" data-cat="lanthanide"><span class="cdot" style="background:#2980b9"></span>Lanthanide</button>
+    <button class="cat-btn" data-cat="actinide"><span class="cdot" style="background:#c0392b"></span>Actinide</button>
+  </div>
+
+  <!-- Filter bar shown in 3-D views -->
+  <div id="filter-bar" class="bot-panel hidden">
+    <button class="cat-btn active" data-cat="all"><span class="cdot" style="background:#999"></span>All</button>
+    <button class="cat-btn" data-cat="alkali-metal"><span class="cdot" style="background:#e74c3c"></span>Alkali</button>
+    <button class="cat-btn" data-cat="alkaline-earth"><span class="cdot" style="background:#e67e22"></span>Alkaline</button>
+    <button class="cat-btn" data-cat="transition-metal"><span class="cdot" style="background:#27ae60"></span>Transition</button>
+    <button class="cat-btn" data-cat="post-transition"><span class="cdot" style="background:#1abc9c"></span>Post-Trans</button>
+    <button class="cat-btn" data-cat="metalloid"><span class="cdot" style="background:#9b59b6"></span>Metalloid</button>
+    <button class="cat-btn" data-cat="nonmetal"><span class="cdot" style="background:#3498db"></span>Non-Metal</button>
+    <button class="cat-btn" data-cat="halogen"><span class="cdot" style="background:#d4ac0d"></span>Halogen</button>
+    <button class="cat-btn" data-cat="noble-gas"><span class="cdot" style="background:#7fb3c8"></span>Noble Gas</button>
+    <button class="cat-btn" data-cat="lanthanide"><span class="cdot" style="background:#2980b9"></span>Lanthanide</button>
+    <button class="cat-btn" data-cat="actinide"><span class="cdot" style="background:#c0392b"></span>Actinide</button>
+  </div>
+</footer>
+
+<!-- TOOLTIP -->
+<div id="tooltip">
+  <div class="tt-wrap">
+    <div class="tt-top">
+      <div class="tt-sym"></div>
+      <div>
+        <div class="tt-name"></div>
+        <div class="tt-meta"></div>
+        <div class="tt-cat"></div>
+      </div>
+    </div>
+    <div class="tt-rows">
+      <div><span class="tl">Phase</span><span class="tv" id="t-phase"></span></div>
+      <div><span class="tl">EN</span><span class="tv" id="t-en"></span></div>
+      <div><span class="tl">Melting</span><span class="tv" id="t-mp"></span></div>
+      <div><span class="tl">Boiling</span><span class="tv" id="t-bp"></span></div>
+      <div><span class="tl">Density</span><span class="tv" id="t-d"></span></div>
+      <div><span class="tl">Found</span><span class="tv" id="t-disc"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div id="modal-mask">
+  <div class="modal">
+    <button id="modal-close" class="modal-x">✕</button>
+    <div class="modal-head">
+      <div class="modal-sym" id="msym"></div>
+      <div>
+        <div class="modal-name" id="mname"></div>
+        <div class="modal-sub" id="msub"></div>
+        <span class="modal-cat" id="mcat"></span>
+      </div>
+    </div>
+    <div class="modal-grid">
+      <div class="mg-item"><span class="ml">Phase</span><span class="mv" id="m-phase"></span></div>
+      <div class="mg-item"><span class="ml">Period · Group</span><span class="mv" id="m-pg"></span></div>
+      <div class="mg-item"><span class="ml">Atomic Mass</span><span class="mv" id="m-mass"></span></div>
+      <div class="mg-item"><span class="ml">Electronegativity</span><span class="mv" id="m-en"></span></div>
+      <div class="mg-item"><span class="ml">Melting Point</span><span class="mv" id="m-mp"></span></div>
+      <div class="mg-item"><span class="ml">Boiling Point</span><span class="mv" id="m-bp"></span></div>
+      <div class="mg-item"><span class="ml">Density</span><span class="mv" id="m-d"></span></div>
+      <div class="mg-item"><span class="ml">Discovered</span><span class="mv" id="m-disc"></span></div>
+    </div>
+  </div>
+</div>
+
+<script src="data/elements.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

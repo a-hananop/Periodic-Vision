@@ -1,0 +1,743 @@
+/* ================================================================
+   PERIODIC TABLE — main.js  v4
+   8 views: table · sphere · helix · grid · wave · cylinder · scatter · pyramid
+   KEY FIX: 3-D renderer uses left/top + margin centering — NEVER
+            touches width/height/fontSize so text stays crisp.
+            Depth conveyed via opacity only (no scale distortion).
+   ================================================================ */
+(function () {
+'use strict';
+
+/* ──────────────────────────────────────────────────────────────
+   CATEGORY META
+────────────────────────────────────────────────────────────── */
+const CAT = {
+  'alkali-metal':    { label: 'Alkali Metal',          color: '#e74c3c' },
+  'alkaline-earth':  { label: 'Alkaline Earth Metal',  color: '#e67e22' },
+  'transition-metal':{ label: 'Transition Metal',      color: '#27ae60' },
+  'post-transition': { label: 'Post-Transition Metal', color: '#1abc9c' },
+  'metalloid':       { label: 'Metalloid',             color: '#9b59b6' },
+  'nonmetal':        { label: 'Reactive Non-Metal',    color: '#3498db' },
+  'halogen':         { label: 'Halogen',               color: '#d4ac0d' },
+  'noble-gas':       { label: 'Noble Gas',             color: '#7fb3c8' },
+  'lanthanide':      { label: 'Lanthanide',            color: '#2980b9' },
+  'actinide':        { label: 'Actinide',              color: '#c0392b' },
+  'unknown':         { label: 'Unknown Properties',    color: '#607d8b' },
+};
+
+/* ──────────────────────────────────────────────────────────────
+   DOM SHORTCUTS
+────────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const vTable    = $('v-table');
+const tableGrid = $('table-grid');
+const v3d       = $('v-3d');
+const scene     = $('scene');
+const starCanvas= $('star-canvas');
+const legend    = $('legend');
+const filterBar = $('filter-bar');
+const spinBtn   = $('spin-btn');
+const resetBtn  = $('reset-btn');
+const tooltip   = $('tooltip');
+const modalMask = $('modal-mask');
+const viewLabel = $('view-label');
+const loading   = $('loading');
+
+/* ──────────────────────────────────────────────────────────────
+   STATE
+────────────────────────────────────────────────────────────── */
+let currentView = 'table';
+let filterCat   = 'all';
+let searchQ     = '';
+
+// 3-D rotation (degrees)
+let rotX = -18, rotY = 0;
+// zoom multiplier (1 = default)
+let zoom = 1;
+
+let dragging = false, lastMX = 0, lastMY = 0;
+let autoSpin = true;
+let rafID    = null;        // main render loop
+let starRAF  = null;        // star background loop
+let lastTime = 0;
+let transitioning = false;
+let resumeTimer   = null;
+
+// base 3-D positions — set by layout functions
+const P = {};   // P[atomicNumber] = {x, y, z}
+
+// default rotation per view
+const VIEW_ROT = {
+  sphere:   { rx: -18, ry: 0 },
+  helix:    { rx:   8, ry: 0 },
+  grid:     { rx: -22, ry: 18 },
+  wave:     { rx: -28, ry: 14 },
+  cylinder: { rx:  -8, ry: 0 },
+  scatter:  { rx: -15, ry: 0 },
+  pyramid:  { rx: -28, ry: 20 },
+};
+
+/* ──────────────────────────────────────────────────────────────
+   STAR BACKGROUND
+────────────────────────────────────────────────────────────── */
+const sctx = starCanvas.getContext('2d');
+const stars = [];
+
+function initStars() {
+  const W = starCanvas.width  = v3d.clientWidth  || window.innerWidth;
+  const H = starCanvas.height = v3d.clientHeight || window.innerHeight - 96;
+  stars.length = 0;
+  const n = Math.floor(W * H / 8000);
+  for (let i = 0; i < n; i++) {
+    stars.push({
+      x: Math.random() * W, y: Math.random() * H,
+      r: Math.random() * 1.1 + 0.2,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: (Math.random() - 0.5) * 0.1,
+      o: Math.random() * 0.4 + 0.05,
+    });
+  }
+}
+
+function drawStars() {
+  const W = starCanvas.width, H = starCanvas.height;
+  sctx.clearRect(0, 0, W, H);
+  for (const s of stars) {
+    sctx.beginPath();
+    sctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    sctx.fillStyle = `rgba(0,210,100,${s.o})`;
+    sctx.fill();
+    s.x += s.vx; s.y += s.vy;
+    if (s.x < 0) s.x = W; if (s.x > W) s.x = 0;
+    if (s.y < 0) s.y = H; if (s.y > H) s.y = 0;
+  }
+}
+
+function startStars() {
+  cancelAnimationFrame(starRAF);
+  initStars();
+  (function loop() { drawStars(); starRAF = requestAnimationFrame(loop); })();
+}
+function stopStars() {
+  cancelAnimationFrame(starRAF);
+  sctx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   MAKE CARD
+────────────────────────────────────────────────────────────── */
+function makeCard(el) {
+  const d = document.createElement('div');
+  d.className = `el-card ${el.category}`;
+  d.dataset.num = el.number;
+  d.innerHTML =
+    `<span class="el-num">${el.number}</span>` +
+    `<span class="el-sym">${el.symbol}</span>` +
+    `<span class="el-name">${el.name}</span>` +
+    `<span class="el-mass">${el.mass}</span>`;
+  d.addEventListener('mouseenter', e => showTT(e, el));
+  d.addEventListener('mouseleave', hideTT);
+  d.addEventListener('mousemove',  moveTT);
+  d.addEventListener('click', e => { e.stopPropagation(); openModal(el); });
+  return d;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   BUILD TABLE VIEW
+────────────────────────────────────────────────────────────── */
+function buildTable() {
+  tableGrid.innerHTML = '';
+
+  /* 10×18 grid
+     dr 0-6 = periods 1-7
+     dr  7  = visual separator row
+     dr  8  = lanthanides (TABLE_POSITIONS row 9)
+     dr  9  = actinides   (TABLE_POSITIONS row 10)  */
+  const grid = Array.from({ length: 10 }, () => Array(18).fill(null));
+
+  ELEMENTS.forEach(el => {
+    const pos = TABLE_POSITIONS[el.number];
+    if (!pos) return;
+    const [r, c] = pos;
+    let dr;
+    if (r >= 1 && r <= 7) dr = r - 1;
+    else if (r === 9)      dr = 8;
+    else if (r === 10)     dr = 9;
+    else return;
+    const dc = c - 1;
+    if (dr >= 0 && dr <= 9 && dc >= 0 && dc < 18) grid[dr][dc] = el;
+  });
+
+  for (let r = 0; r < 10; r++) {
+    if (r === 7) {
+      const sep = document.createElement('div');
+      sep.className = 'sep-row';
+      sep.style.gridColumn = '1/-1';
+      tableGrid.appendChild(sep);
+      continue;
+    }
+    for (let c = 0; c < 18; c++) {
+      const el = grid[r][c];
+      if (!el) {
+        const g = document.createElement('div');
+        g.className = 'ghost';
+        tableGrid.appendChild(g);
+      } else {
+        const card = makeCard(el);
+        // staggered flip-in: row-major order
+        const delay = (r * 18 + c) * 7;
+        card.style.animationDelay = delay + 'ms';
+        tableGrid.appendChild(card);
+      }
+    }
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   BUILD 3-D SCENE  (populates #scene, then renders)
+────────────────────────────────────────────────────────────── */
+function build3D() {
+  scene.innerHTML = '';
+  ELEMENTS.forEach((el, i) => {
+    const card = makeCard(el);
+    // start invisible; stagger pop-in
+    card.style.animationName = 'none';  // disable CSS subtlePulse during entry
+    card.style.opacity = '0';
+    card.style.left    = '0px';
+    card.style.top     = '0px';
+    scene.appendChild(card);
+
+    setTimeout(() => {
+      card.classList.add('pop-in');
+      card.style.opacity = '';
+      // re-enable pulse after entry
+      setTimeout(() => card.classList.remove('pop-in'), 500);
+    }, i * 5 + 60);
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────
+   LAYOUT FUNCTIONS  — compute P[num] = {x, y, z}
+   All coordinates are world-space pixels.
+────────────────────────────────────────────────────────────── */
+function dim() {
+  const W = v3d.clientWidth  || window.innerWidth;
+  const H = v3d.clientHeight || window.innerHeight - 96;
+  return { W, H, N: ELEMENTS.length };
+}
+
+/* ── Sphere: Fibonacci lattice ── */
+function layoutSphere() {
+  const { W, H, N } = dim();
+  const R = Math.min(W, H) * 0.36;
+  const φ = Math.PI * (3 - Math.sqrt(5));
+  ELEMENTS.forEach((el, i) => {
+    const θ = Math.acos(1 - 2 * (i + 0.5) / N);
+    const ψ = φ * i;
+    P[el.number] = {
+      x:  R * Math.sin(θ) * Math.cos(ψ),
+      y:  R * Math.cos(θ),
+      z:  R * Math.sin(θ) * Math.sin(ψ),
+    };
+  });
+}
+
+/* ── Helix: double helix ── */
+function layoutHelix() {
+  const { W, H, N } = dim();
+  const R    = Math.min(W, H) * 0.24;
+  const Ht   = Math.min(H * 0.84, 660);
+  const revs = 4.5;
+  ELEMENTS.forEach((el, i) => {
+    const t   = i / (N - 1);
+    const ang = t * revs * Math.PI * 2;
+    // two strands offset by π
+    const strand = i % 2 === 0 ? 0 : Math.PI;
+    P[el.number] = {
+      x: R * Math.cos(ang + strand),
+      y: (t - 0.5) * Ht,
+      z: R * Math.sin(ang + strand),
+    };
+  });
+  rotX = VIEW_ROT.helix.rx; rotY = VIEW_ROT.helix.ry;
+}
+
+/* ── Grid: flat grid with z-ripple ── */
+function layoutGrid() {
+  const { W, H, N } = dim();
+  const cols = 12;
+  const rows = Math.ceil(N / cols);
+  const gX   = Math.min(72, W / cols * 0.88);
+  const gY   = 70;
+  ELEMENTS.forEach((el, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    P[el.number] = {
+      x: (col - (cols - 1) / 2) * gX,
+      y: (row - (rows - 1) / 2) * gY,
+      z: Math.sin(col * 0.55 + row * 0.45) * 140,
+    };
+  });
+}
+
+/* ── Wave: rolling wave surface ── */
+function layoutWave() {
+  const { W, H, N } = dim();
+  const cols = 14;
+  const rows = Math.ceil(N / cols);
+  const gX   = Math.min(76, W / cols * 0.9);
+  const gY   = 70;
+  let t = 0;
+  ELEMENTS.forEach((el, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    P[el.number] = {
+      x: (col - (cols - 1) / 2) * gX,
+      y: (row - (rows - 1) / 2) * gY + Math.sin(col * 0.5) * 28,
+      z: Math.sin(col * 0.6 + row * 0.9) * 190 + Math.cos(col * 0.3) * 80,
+    };
+    t++;
+  });
+}
+
+/* ── Cylinder: stacked rings ── */
+function layoutCylinder() {
+  const { W, H, N } = dim();
+  const R      = Math.min(W, H) * 0.27;
+  const Ht     = Math.min(H * 0.82, 640);
+  const perRing = 12;
+  const rings   = Math.ceil(N / perRing);
+  ELEMENTS.forEach((el, i) => {
+    const ring = Math.floor(i / perRing);
+    const idx  = i % perRing;
+    const ang  = (idx / perRing) * Math.PI * 2;
+    P[el.number] = {
+      x: R * Math.cos(ang),
+      y: ((ring / Math.max(rings - 1, 1)) - 0.5) * Ht,
+      z: R * Math.sin(ang),
+    };
+  });
+  rotX = VIEW_ROT.cylinder.rx; rotY = VIEW_ROT.cylinder.ry;
+}
+
+/* ── Scatter: deterministic 3-D cloud ── */
+function layoutScatter() {
+  const { W, H, N } = dim();
+  const R = Math.min(W, H) * 0.38;
+  // Mulberry32 PRNG for determinism
+  let s = 0xdeadbeef;
+  function rng() {
+    s |= 0; s = s + 0x6D2B79F5 | 0;
+    let t = Math.imul(s ^ s >>> 15, 1 | s);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+  ELEMENTS.forEach(el => {
+    const r   = R * (0.25 + rng() * 0.75);
+    const th  = Math.acos(2 * rng() - 1);
+    const phi = rng() * Math.PI * 2;
+    P[el.number] = {
+      x: r * Math.sin(th) * Math.cos(phi),
+      y: r * Math.cos(th),
+      z: r * Math.sin(th) * Math.sin(phi),
+    };
+  });
+}
+
+/* ── Pyramid: layered tiers ── */
+function layoutPyramid() {
+  const { W, H, N } = dim();
+  const maxSpan = Math.min(W, H) * 0.65;
+  const Ht      = Math.min(H * 0.82, 640);
+
+  // distribute elements into tiers (triangle numbers)
+  const tiers = [];
+  let placed = 0, tier = 1;
+  while (placed < N) {
+    const count = Math.min(tier * tier, N - placed);
+    tiers.push({ start: placed, count, tier });
+    placed += count;
+    tier++;
+  }
+  const T = tiers.length;
+
+  tiers.forEach(({ start, count, tier: t }) => {
+    const progress = (t - 1) / Math.max(T - 1, 1);
+    const y     = (progress - 0.5) * Ht;
+    const span  = maxSpan * progress + 60;
+    const side  = Math.ceil(Math.sqrt(count));
+    const gap   = side > 1 ? span / (side - 1) : 0;
+    for (let k = 0; k < count; k++) {
+      const el  = ELEMENTS[start + k];
+      if (!el) continue;
+      const row = Math.floor(k / side);
+      const col = k % side;
+      P[el.number] = {
+        x: (col - (side - 1) / 2) * gap,
+        y,
+        z: (row - (side - 1) / 2) * gap,
+      };
+    }
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────
+   3-D RENDER LOOP
+   Strategy: project each world point to screen, then set
+   card.style.left / card.style.top (centered by CSS margin).
+   Depth → opacity only. Cards stay fixed 58×62 px — text always sharp.
+────────────────────────────────────────────────────────────── */
+const FOV = 900;
+
+function project(wx, wy, wz, cosX, sinX, cosY, sinY) {
+  // Rotate Y (yaw)
+  const x1 =  wx * cosY + wz * sinY;
+  const z1 = -wx * sinY + wz * cosY;
+  // Rotate X (pitch)
+  const y2 = wy * cosX - z1 * sinX;
+  const z2 = wy * sinX + z1 * cosX;
+  return { x: x1, y: y2, z: z2 };
+}
+
+function startRender() {
+  cancelAnimationFrame(rafID);
+  lastTime = performance.now();
+
+  function frame(t) {
+    const dt = Math.min(t - lastTime, 50);
+    lastTime = t;
+    if (autoSpin && !dragging) rotY += dt * 0.022;
+    renderScene();
+    rafID = requestAnimationFrame(frame);
+  }
+  rafID = requestAnimationFrame(frame);
+}
+
+function renderScene() {
+  const radX = rotX * Math.PI / 180;
+  const radY = rotY * Math.PI / 180;
+  const cX = Math.cos(radX), sX = Math.sin(radX);
+  const cY = Math.cos(radY), sY = Math.sin(radY);
+
+  const cards = scene.querySelectorAll('.el-card');
+
+  // 1. Project all cards, build sortable list
+  const projected = [];
+  cards.forEach(card => {
+    const num = +card.dataset.num;
+    const p   = P[num];
+    if (!p) return;
+    const q = project(p.x * zoom, p.y * zoom, p.z * zoom, cX, sX, cY, sY);
+    projected.push({ card, ...q });
+  });
+
+  // 2. Sort back → front (painter's algorithm)
+  projected.sort((a, b) => a.z - b.z);
+
+  // 3. Apply position + depth effects
+  const maxZ = Math.max(...projected.map(p => Math.abs(p.z))) || 1;
+
+  projected.forEach(({ card, x, y, z }, idx) => {
+    // Perspective scale for positioning only (NOT card size)
+    const sc    = FOV / (FOV + z + 300);
+    const sx    = x * sc;
+    const sy    = y * sc;
+
+    // Opacity: far = dim, near = bright
+    const normZ = (z + maxZ) / (2 * maxZ); // 0=back, 1=front
+    const alpha = card.classList.contains('dimmed')
+      ? 0.04
+      : Math.max(0.18, 0.4 + normZ * 0.6);
+
+    // Apply — only left/top/zIndex/opacity
+    card.style.left    = sx + 'px';
+    card.style.top     = sy + 'px';
+    card.style.zIndex  = idx;
+    card.style.opacity = alpha.toFixed(3);
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────
+   VIEW SWITCHING
+────────────────────────────────────────────────────────────── */
+document.querySelectorAll('.vtab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (transitioning || btn.dataset.view === currentView) return;
+    document.querySelectorAll('.vtab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    switchView(btn.dataset.view);
+  });
+});
+
+function switchView(next) {
+  transitioning = true;
+
+  // fade out current
+  vTable.classList.remove('active');
+  v3d.classList.remove('active');
+
+  cancelAnimationFrame(rafID);
+  stopStars();
+
+  setTimeout(() => {
+    currentView = next;
+    viewLabel.textContent = next;
+
+    if (next === 'table') {
+      legend.classList.remove('hidden');
+      filterBar.classList.add('hidden');
+      spinBtn.classList.add('hidden');
+      resetBtn.classList.add('hidden');
+      vTable.classList.add('active');
+    } else {
+      legend.classList.add('hidden');
+      filterBar.classList.remove('hidden');
+      spinBtn.classList.remove('hidden');
+      resetBtn.classList.remove('hidden');
+      v3d.classList.add('active');
+
+      // Set default rotation
+      const def = VIEW_ROT[next] || { rx: -18, ry: 0 };
+      rotX = def.rx; rotY = def.ry; zoom = 1;
+      autoSpin = true;
+      spinBtn.textContent = '⏸ spin';
+
+      // Compute layout
+      if (next === 'sphere')   layoutSphere();
+      else if (next === 'helix')    layoutHelix();
+      else if (next === 'grid')     layoutGrid();
+      else if (next === 'wave')     layoutWave();
+      else if (next === 'cylinder') layoutCylinder();
+      else if (next === 'scatter')  layoutScatter();
+      else if (next === 'pyramid')  layoutPyramid();
+
+      build3D();
+      startStars();
+      startRender();
+    }
+
+    applyFilter();
+    setTimeout(() => { transitioning = false; }, 500);
+  }, 250);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   FILTER + SEARCH
+────────────────────────────────────────────────────────────── */
+function applyFilter() {
+  const q   = searchQ.toLowerCase().trim();
+  const src = currentView === 'table'
+    ? tableGrid.querySelectorAll('.el-card')
+    : scene.querySelectorAll('.el-card');
+
+  src.forEach(card => {
+    const num = +card.dataset.num;
+    const el  = ELEMENTS[num - 1];
+    if (!el) return;
+    const catOK = filterCat === 'all' || el.category === filterCat;
+    const qOK   = !q
+      || el.symbol.toLowerCase().includes(q)
+      || el.name.toLowerCase().includes(q)
+      || String(el.number).includes(q);
+
+    card.classList.toggle('dimmed', !(catOK && qOK));
+    card.classList.toggle('hl',     !!(q && qOK && catOK));
+  });
+}
+
+$('search').addEventListener('input', e => { searchQ = e.target.value; applyFilter(); });
+
+// Both legend and filter-bar share the same .cat-btn class
+document.querySelectorAll('.cat-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    // deactivate siblings in same panel
+    btn.closest('.bot-panel').querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterCat = btn.dataset.cat;
+    applyFilter();
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────
+   SPIN / RESET
+────────────────────────────────────────────────────────────── */
+spinBtn.addEventListener('click', () => {
+  autoSpin = !autoSpin;
+  spinBtn.textContent = autoSpin ? '⏸ spin' : '▶ spin';
+});
+
+resetBtn.addEventListener('click', () => {
+  const def = VIEW_ROT[currentView] || { rx: -18, ry: 0 };
+  rotX = def.rx; rotY = def.ry; zoom = 1;
+  autoSpin = true;
+  spinBtn.textContent = '⏸ spin';
+});
+
+/* ──────────────────────────────────────────────────────────────
+   DRAG + ZOOM
+────────────────────────────────────────────────────────────── */
+v3d.addEventListener('mousedown', e => {
+  if (e.target.classList.contains('el-card')) return;
+  dragging = true; autoSpin = false;
+  lastMX = e.clientX; lastMY = e.clientY;
+  clearTimeout(resumeTimer);
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  rotY += (e.clientX - lastMX) * 0.36;
+  rotX += (e.clientY - lastMY) * 0.36;
+  rotX = Math.max(-82, Math.min(82, rotX));
+  lastMX = e.clientX; lastMY = e.clientY;
+});
+window.addEventListener('mouseup', () => {
+  if (!dragging) return;
+  dragging = false;
+  clearTimeout(resumeTimer);
+  resumeTimer = setTimeout(() => { autoSpin = true; spinBtn.textContent = '⏸ spin'; }, 3000);
+});
+
+v3d.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoom = Math.max(0.28, Math.min(2.2, zoom - e.deltaY * 0.0008));
+}, { passive: false });
+
+// Touch drag
+v3d.addEventListener('touchstart', e => {
+  if (e.target.classList.contains('el-card')) return;
+  dragging = true; autoSpin = false;
+  lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
+}, { passive: true });
+window.addEventListener('touchmove', e => {
+  if (!dragging) return;
+  rotY += (e.touches[0].clientX - lastMX) * 0.36;
+  rotX += (e.touches[0].clientY - lastMY) * 0.36;
+  rotX = Math.max(-82, Math.min(82, rotX));
+  lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
+}, { passive: true });
+window.addEventListener('touchend', () => {
+  dragging = false;
+  clearTimeout(resumeTimer);
+  resumeTimer = setTimeout(() => { autoSpin = true; }, 3000);
+});
+
+/* ──────────────────────────────────────────────────────────────
+   KEYBOARD
+────────────────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === ' ') {
+    e.preventDefault();
+    autoSpin = !autoSpin;
+    spinBtn.textContent = autoSpin ? '⏸ spin' : '▶ spin';
+  }
+  if (e.key === 'Escape') modalMask.classList.remove('open');
+});
+
+/* ──────────────────────────────────────────────────────────────
+   TOOLTIP
+────────────────────────────────────────────────────────────── */
+const ttSym  = tooltip.querySelector('.tt-sym');
+const ttName = tooltip.querySelector('.tt-name');
+const ttMeta = tooltip.querySelector('.tt-meta');
+const ttCat  = tooltip.querySelector('.tt-cat');
+
+function showTT(e, el) {
+  const meta = CAT[el.category] || CAT['unknown'];
+  ttSym.textContent  = el.symbol;
+  ttSym.style.color  = meta.color;
+  ttName.textContent = el.name;
+  ttMeta.textContent = `#${el.number} · ${el.mass} u`;
+  ttCat.textContent  = meta.label;
+  ttCat.style.color  = meta.color;
+  $('t-phase').textContent = el.phase || '—';
+  $('t-en').textContent    = el.electronegativity != null ? el.electronegativity : '—';
+  $('t-mp').textContent    = el.meltingPoint  != null ? `${el.meltingPoint} K`  : '—';
+  $('t-bp').textContent    = el.boilingPoint  != null ? `${el.boilingPoint} K`  : '—';
+  $('t-d').textContent     = el.density       != null ? `${el.density} g/cm³`   : '—';
+  $('t-disc').textContent  = el.discovered || 'Ancient';
+  tooltip.classList.add('show');
+  posTT(e);
+}
+function hideTT()   { tooltip.classList.remove('show'); }
+function moveTT(e)  { posTT(e); }
+function posTT(e) {
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + 230 > window.innerWidth)  x = e.clientX - 234;
+  if (y + 210 > window.innerHeight) y = e.clientY - 214;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top  = y + 'px';
+}
+
+/* ──────────────────────────────────────────────────────────────
+   MODAL
+────────────────────────────────────────────────────────────── */
+function openModal(el) {
+  const meta = CAT[el.category] || CAT['unknown'];
+  $('msym').textContent  = el.symbol;
+  $('msym').style.color  = meta.color;
+  $('mname').textContent = el.name;
+  $('msub').textContent  = `Atomic Number ${el.number} · Mass ${el.mass} u`;
+  const mc = $('mcat');
+  mc.textContent = meta.label;
+  mc.style.color = mc.style.borderColor = meta.color;
+  $('m-phase').textContent = el.phase || '—';
+  $('m-pg').textContent    = `Period ${el.period}${el.group != null ? ' · Group ' + el.group : ''}`;
+  $('m-mass').textContent  = el.mass + ' u';
+  $('m-en').textContent    = el.electronegativity != null ? el.electronegativity : '—';
+  $('m-mp').textContent    = el.meltingPoint  != null ? `${el.meltingPoint} K`  : '—';
+  $('m-bp').textContent    = el.boilingPoint  != null ? `${el.boilingPoint} K`  : '—';
+  $('m-d').textContent     = el.density       != null ? `${el.density} g/cm³`   : '—';
+  $('m-disc').textContent  = el.discovered || 'Ancient';
+  modalMask.classList.add('open');
+}
+modalMask.addEventListener('click', e => { if (e.target === modalMask) modalMask.classList.remove('open'); });
+$('modal-close').addEventListener('click', () => modalMask.classList.remove('open'));
+
+/* ──────────────────────────────────────────────────────────────
+   RESIZE
+────────────────────────────────────────────────────────────── */
+let resizeT;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    if (currentView !== 'table') {
+      starCanvas.width  = v3d.clientWidth;
+      starCanvas.height = v3d.clientHeight;
+      initStars();
+      // recompute layout without rebuilding DOM
+      if (currentView === 'sphere')   layoutSphere();
+      else if (currentView === 'helix')    layoutHelix();
+      else if (currentView === 'grid')     layoutGrid();
+      else if (currentView === 'wave')     layoutWave();
+      else if (currentView === 'cylinder') layoutCylinder();
+      else if (currentView === 'scatter')  layoutScatter();
+      else if (currentView === 'pyramid')  layoutPyramid();
+    }
+  }, 200);
+});
+
+/* ──────────────────────────────────────────────────────────────
+   INIT
+────────────────────────────────────────────────────────────── */
+function init() {
+  buildTable();
+  vTable.classList.add('active');
+  legend.classList.remove('hidden');
+  filterBar.classList.add('hidden');
+  spinBtn.classList.add('hidden');
+  resetBtn.classList.add('hidden');
+  applyFilter();
+
+  setTimeout(() => {
+    loading.classList.add('done');
+    setTimeout(() => loading.remove(), 700);
+  }, 700);
+}
+
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(init);
+} else {
+  setTimeout(init, 150);
+}
+
+})();
