@@ -699,12 +699,14 @@ header {
   .vtab { padding-inline: 10px; }
 
   #v-table {
+    padding: clamp(16px, 3vh, 28px) 8px 10px;
     display: grid;
     grid-template-rows: max-content max-content;
     align-content: center;
     justify-items: center;
     min-height: 100%;
     box-sizing: border-box;
+    transform: translateY(-8px);
   }
   #table-grid {
     min-width: max(360px, calc(100vw - 16px));
@@ -712,10 +714,13 @@ header {
     grid-template-columns: repeat(18, minmax(0, 1fr));
     gap: 1px;
     margin-inline: 0;
+    align-self: center;
   }
   #table-grid .el-card,
   #table-grid .ghost { aspect-ratio: auto; min-height: 22px; }
-  .table-heading { width: min(100%, 560px); margin-bottom: 4px; }
+  .table-heading { width: min(100%, 560px); margin-bottom: 4px; transform: translateY(-17px); }
+  .table-heading span { font-size: 0.82rem; }
+  .table-heading small { font-size: 0.54rem; }
 }
 
 @media (max-width: 400px) {
@@ -727,7 +732,7 @@ header {
   .ctrl-btn { padding: 3px 5px; font-size: 0.5rem; }
 
   #v-table {
-    padding: 5px 4px 7px;
+    padding: clamp(14px, 3vh, 24px) 4px 7px;
     overflow-x: auto;
     display: grid;
     grid-template-rows: max-content max-content;
@@ -736,9 +741,9 @@ header {
     min-height: 100%;
     box-sizing: border-box;
   }
-  .table-heading { flex: 0 0 auto; width: 100%; margin: 0 0 3px; padding: 0 4px; }
-  .table-heading span { font-size: 0.58rem; letter-spacing: 0.16em; }
-  .table-heading small { font-size: 0.38rem; letter-spacing: 0.06em; }
+  .table-heading { width: 100%; margin: 0 0 3px; padding: 0 4px; transform: translateY(-16px); }
+  .table-heading span { font-size: 0.61rem; letter-spacing: 0.16em; }
+  .table-heading small { font-size: 0.4rem; letter-spacing: 0.06em; }
   .sep-row { display: none; }
   /* An 18-column data table needs a readable minimum canvas on phones.
      The stage scrolls horizontally instead of shrinking symbols to dots. */
