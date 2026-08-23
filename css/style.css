@@ -606,8 +606,17 @@ header {
   .hdr-right { gap: 3px; }
   .ctrl-btn { padding: 3px 5px; font-size: 0.5rem; }
 
-  #v-table { padding: 5px 4px 7px; }
-  #table-grid { min-width: 0; width: 100%; grid-template-columns: repeat(18, minmax(0, 1fr)); gap: 1px; }
+  #v-table { padding: 5px 4px 7px; overflow-x: auto; }
+  /* An 18-column data table needs a readable minimum canvas on phones.
+     The stage scrolls horizontally instead of shrinking symbols to dots. */
+  #table-grid {
+    min-width: 360px;
+    width: 360px;
+    grid-template-columns: repeat(18, minmax(0, 1fr));
+    gap: 1px;
+    margin-left: 0;
+    margin-right: 0;
+  }
   #table-grid .el-card { border-radius: 3px; padding: 1px; }
   #table-grid .el-num { font-size: 0.26rem; padding-left: 1px; }
   #table-grid .el-sym { font-size: 0.55rem; }
