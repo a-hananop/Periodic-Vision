@@ -36,7 +36,15 @@
 
 html, body {
   width: 100%; height: 100%;
-  background: var(--bg2);
+  background-color: #05080b;
+  background-image:
+    radial-gradient(ellipse at center, transparent 48%, rgba(0, 0, 0, 0.38) 100%),
+    radial-gradient(ellipse at 50% 43%, rgba(0, 255, 127, 0.045) 0%, rgba(0, 90, 55, 0.018) 28%, transparent 62%),
+    radial-gradient(ellipse at 50% 115%, rgba(0, 110, 76, 0.035), transparent 48%),
+    linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+  background-attachment: fixed;
   font-family: 'Share Tech Mono', 'Courier New', monospace;
   color: var(--txt);
   overflow: hidden;
@@ -169,10 +177,51 @@ header {
   top: var(--hdr-h); bottom: var(--bot-h);
   left: 0; right: 0;
   overflow: hidden;
+  background:
+    linear-gradient(125deg, transparent 0 24%, rgba(102,255,204,0.018) 24.2%, transparent 24.5% 58%, rgba(75,167,185,0.014) 58.2%, transparent 58.5%),
+    linear-gradient(35deg, transparent 0 37%, rgba(0,255,127,0.012) 37.2%, transparent 37.5% 72%, rgba(102,194,255,0.014) 72.2%, transparent 72.5%),
+    radial-gradient(ellipse at center, rgba(16,40,42,0.18), transparent 68%);
+  isolation: isolate;
+}
+
+#stage::before,
+#stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Low-contrast crystalline facets: visible in the black field, never
+   bright enough to compete with the interactive element cards. */
+#stage::before {
+  background:
+    conic-gradient(from 18deg at 18% 26%, transparent 0 12%, rgba(64,190,168,0.045) 12.2% 12.8%, transparent 13% 32%, rgba(40,114,160,0.035) 32.2% 32.8%, transparent 33%),
+    conic-gradient(from 204deg at 82% 72%, transparent 0 17%, rgba(0,255,127,0.035) 17.2% 17.8%, transparent 18% 46%, rgba(75,167,185,0.035) 46.2% 46.8%, transparent 47%),
+    linear-gradient(143deg, transparent 0 31%, rgba(117,255,218,0.025) 31.2%, transparent 31.6% 68%, rgba(66,153,184,0.025) 68.2%, transparent 68.6%);
+  opacity: 0.9;
+  animation: crystalShift 18s ease-in-out infinite alternate;
+}
+
+#stage::after {
+  background:
+    linear-gradient(118deg, transparent 49.7%, rgba(118,255,222,0.045) 50%, transparent 50.3%),
+    linear-gradient(28deg, transparent 49.8%, rgba(70,177,194,0.035) 50%, transparent 50.2%),
+    radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.22) 100%);
+  mix-blend-mode: screen;
+  opacity: 0.55;
+  mask-image: radial-gradient(ellipse at center, transparent 8%, #000 70%, transparent 100%);
+}
+
+@keyframes crystalShift {
+  from { transform: translate3d(-1.2%, -0.7%, 0) scale(1); opacity: 0.68; }
+  to   { transform: translate3d(1.2%, 0.7%, 0) scale(1.03); opacity: 1; }
 }
 
 .view {
   position: absolute; inset: 0;
+  z-index: 1;
   opacity: 0; pointer-events: none;
   transition: opacity 0.45s;
 }
@@ -606,7 +655,12 @@ header {
   .hdr-right { gap: 3px; }
   .ctrl-btn { padding: 3px 5px; font-size: 0.5rem; }
 
-  #v-table { padding: 5px 4px 7px; overflow-x: auto; }
+  #v-table {
+    padding: 5px 4px 7px;
+    overflow-x: auto;
+    display: flex;
+    align-items: center;
+  }
   /* An 18-column data table needs a readable minimum canvas on phones.
      The stage scrolls horizontally instead of shrinking symbols to dots. */
   #table-grid {
@@ -616,6 +670,7 @@ header {
     gap: 1px;
     margin-left: 0;
     margin-right: 0;
+    flex: 0 0 360px;
   }
   #table-grid .el-card { border-radius: 3px; padding: 1px; }
   #table-grid .el-num { font-size: 0.26rem; padding-left: 1px; }
