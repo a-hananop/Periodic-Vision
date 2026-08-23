@@ -110,11 +110,12 @@ header {
 /* View tabs */
 .vtabs {
   display: flex; gap: 2px;
-  background: rgba(0,0,0,0.4);
-  border: 1px solid var(--border);
-  border-radius: 8px; padding: 3px;
+  background: linear-gradient(180deg, rgba(16,25,29,0.82), rgba(3,8,11,0.92));
+  border: 1px solid rgba(135,255,216,0.12);
+  border-radius: 9px; padding: 3px;
   overflow-x: auto; flex: 1 1 auto; min-width: 0;
   scrollbar-width: none;
+  box-shadow: inset 0 1px rgba(255,255,255,0.045), 0 0 18px rgba(0,255,127,0.035);
 }
 .vtabs::-webkit-scrollbar { display: none; }
 
@@ -123,13 +124,18 @@ header {
   border: none; background: transparent;
   color: var(--txt2); font-family: inherit;
   font-size: 0.68rem; letter-spacing: 0.08em;
-  cursor: pointer; transition: all 0.18s;
+  cursor: pointer; transition: color 0.18s, background 0.18s, box-shadow 0.18s, text-shadow 0.18s;
   white-space: nowrap;
 }
-.vtab:hover { color: var(--glow); }
+.vtab:hover { color: #d8ffeb; background: rgba(0,255,127,0.07); }
 .vtab.active {
-  background: rgba(0,255,127,0.13);
-  color: var(--glow); text-shadow: 0 0 8px var(--glow);
+  background: linear-gradient(180deg, rgba(0,255,127,0.2), rgba(0,150,86,0.12));
+  color: #baffd6; text-shadow: 0 0 9px rgba(0,255,127,0.9);
+  box-shadow: inset 0 1px rgba(196,255,225,0.16), 0 0 12px rgba(0,255,127,0.14);
+}
+.vtab:focus-visible, .cat-btn:focus-visible, .ctrl-btn:focus-visible {
+  outline: 1px solid rgba(145,255,220,0.75);
+  outline-offset: 2px;
 }
 
 /* Right controls */
@@ -510,25 +516,28 @@ header {
   display: flex; align-items: center; justify-content: center;
   flex-wrap: wrap; gap: 3px 8px;
   padding: 4px 14px;
-  background: var(--panel);
+  background: linear-gradient(180deg, rgba(11,18,21,0.94), rgba(4,8,11,0.98));
   border-top: 1px solid var(--border);
   backdrop-filter: blur(14px);
+  box-shadow: 0 -8px 26px rgba(0,0,0,0.2), inset 0 1px rgba(145,255,220,0.035);
 }
 .bot-panel.hidden { display: none !important; }
 
 .cat-btn {
   display: flex; align-items: center; gap: 5px;
   padding: 3px 9px; border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: transparent; font-family: inherit;
+  border: 1px solid rgba(135,255,216,0.13);
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(0,0,0,0.14)); font-family: inherit;
   font-size: 0.58rem; letter-spacing: 0.05em;
   color: var(--txt2); cursor: pointer;
-  transition: all 0.15s; white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s; white-space: nowrap;
+  box-shadow: inset 0 1px rgba(255,255,255,0.045);
 }
-.cat-btn:hover { color: var(--txt); border-color: rgba(255,255,255,0.25); }
+.cat-btn:hover { color: #e2ffef; border-color: rgba(145,255,220,0.38); transform: translateY(-1px); box-shadow: 0 0 12px rgba(0,255,127,0.09); }
 .cat-btn.active {
-  background: rgba(255,255,255,0.08);
-  color: var(--txt); border-color: rgba(255,255,255,0.25);
+  background: linear-gradient(180deg, rgba(0,255,127,0.12), rgba(255,255,255,0.045));
+  color: #dcffeb; border-color: rgba(145,255,220,0.34);
+  box-shadow: inset 0 1px rgba(210,255,232,0.1), 0 0 12px rgba(0,255,127,0.1);
 }
 
 .cdot {
