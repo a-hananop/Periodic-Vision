@@ -39,11 +39,13 @@ html, body {
   background-color: #05080b;
   background-image:
     radial-gradient(ellipse at center, transparent 48%, rgba(0, 0, 0, 0.38) 100%),
-    radial-gradient(ellipse at 50% 43%, rgba(0, 255, 127, 0.045) 0%, rgba(0, 90, 55, 0.018) 28%, transparent 62%),
-    radial-gradient(ellipse at 50% 115%, rgba(0, 110, 76, 0.035), transparent 48%),
+    radial-gradient(ellipse at 50% 43%, rgba(0, 255, 127, 0.085) 0%, rgba(0, 126, 78, 0.035) 28%, transparent 62%),
+    radial-gradient(ellipse at 8% 18%, rgba(0, 198, 181, 0.045), transparent 30%),
+    radial-gradient(ellipse at 92% 82%, rgba(54, 130, 255, 0.04), transparent 32%),
+    radial-gradient(ellipse at 50% 115%, rgba(0, 150, 104, 0.06), transparent 48%),
     linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
-  background-size: auto, auto, 32px 32px, 32px 32px;
+  background-size: auto, auto, auto, auto, auto, 32px 32px, 32px 32px;
   background-attachment: fixed;
   font-family: 'Share Tech Mono', 'Courier New', monospace;
   color: var(--txt);
@@ -200,7 +202,7 @@ header {
     conic-gradient(from 18deg at 18% 26%, transparent 0 12%, rgba(64,190,168,0.045) 12.2% 12.8%, transparent 13% 32%, rgba(40,114,160,0.035) 32.2% 32.8%, transparent 33%),
     conic-gradient(from 204deg at 82% 72%, transparent 0 17%, rgba(0,255,127,0.035) 17.2% 17.8%, transparent 18% 46%, rgba(75,167,185,0.035) 46.2% 46.8%, transparent 47%),
     linear-gradient(143deg, transparent 0 31%, rgba(117,255,218,0.025) 31.2%, transparent 31.6% 68%, rgba(66,153,184,0.025) 68.2%, transparent 68.6%);
-  opacity: 0.9;
+  opacity: 1;
   animation: crystalShift 18s ease-in-out infinite alternate;
 }
 
@@ -210,7 +212,7 @@ header {
     linear-gradient(28deg, transparent 49.8%, rgba(70,177,194,0.035) 50%, transparent 50.2%),
     radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0,0,0,0.22) 100%);
   mix-blend-mode: screen;
-  opacity: 0.55;
+  opacity: 0.72;
   mask-image: radial-gradient(ellipse at center, transparent 8%, #000 70%, transparent 100%);
 }
 
