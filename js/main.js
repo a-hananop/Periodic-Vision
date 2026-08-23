@@ -74,8 +74,8 @@ const VIEW_ROT = {
   sphere:   { rx: -18, ry: 0 },
   helix:    { rx:   8, ry: 0 },
   grid:     { rx: -22, ry: 18 },
-  wave:     { rx: -28, ry: 14 },
-  cylinder: { rx:  -8, ry: 0 },
+  wave:     { rx: -12, ry: 12 },
+  cylinder: { rx: -16, ry: 40 },
   scatter:  { rx: -15, ry: 0 },
   pyramid:  { rx: -22, ry: 24 },
 };
@@ -296,60 +296,86 @@ function layoutGrid() {
 /* ── Wave: rolling wave surface ── */
 function layoutWave() {
   const { W, H, N } = dim();
-  const { cols, rows, gX, gY } = flatLayoutMetrics(W, H, 12);
-  let t = 0;
+  const cols = Math.max(12, Math.min(16, Math.floor((W - 96) / 62)));
+  const rows = Math.ceil(N / cols);
+  const gX = Math.min(74, (W - 96) / Math.max(cols - 1, 1));
+  const gY = Math.min(64, Math.max(46, (H - 82) / Math.max(rows - 1, 1)));
+  const amplitude = Math.min(66, H * 0.12);
+  const depth = Math.min(150, W * 0.14);
+
+  // Build a coherent sine-wave surface. Every row follows the same phase,
+  // with a small progressive offset to give the wave genuine 3-D volume.
   ELEMENTS.forEach((el, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
+    const normalizedRow = row / Math.max(rows - 1, 1) - 0.5;
+    const phase = (col / (cols - 1)) * Math.PI * 3.0;
+    const baseY = (row - (rows - 1) / 2) * gY;
     P[el.number] = {
       x: (col - (cols - 1) / 2) * gX,
-      y: (row - (rows - 1) / 2) * gY + Math.sin(col * 0.5) * 28,
-      z: Math.sin(col * 0.6 + row * 0.9) * 190 + Math.cos(col * 0.3) * 80,
+      // Keep the crest aligned across the ribbon while gently tapering the
+      // outer rows so the wave has a clean, intentional silhouette.
+      y: baseY + Math.sin(phase) * amplitude * (1 - Math.abs(normalizedRow) * 0.18),
+      // Depth is used for the layered ribbon, not to distort the visible
+      // sine curve into a loop or arc.
+      z: normalizedRow * depth + Math.sin(phase) * depth * 0.16,
     };
-    t++;
   });
 }
 
 /* ── Cylinder: stacked rings ── */
 function layoutCylinder() {
   const { W, H, N } = dim();
-  const R      = Math.min(W, H) * 0.27;
-  const Ht     = Math.min(H * 0.82, 640);
-  const perRing = 12;
-  const rings   = Math.ceil(N / perRing);
-  ELEMENTS.forEach((el, i) => {
-    const ring = Math.floor(i / perRing);
-    const idx  = i % perRing;
-    const ang  = (idx / perRing) * Math.PI * 2;
-    P[el.number] = {
-      x: R * Math.cos(ang),
-      y: ((ring / Math.max(rings - 1, 1)) - 0.5) * Ht,
-      z: R * Math.sin(ang),
-    };
-  });
+  const R      = Math.min(W, H) * 0.34;
+  const Ht     = Math.min(H * 0.72, 520);
+  // Eight broad rings make the circular cross-section readable instead of
+  // producing a dense rectangular wall of nearly coincident cards.
+  const rings   = 8;
+  const baseCount = Math.floor(N / rings);
+  const extra = N % rings;
+  let offset = 0;
+
+  // Balance the final partial ring across the cylinder so the silhouette
+  // stays even at both ends instead of tapering on the last row.
+  for (let ring = 0; ring < rings; ring++) {
+    const count = baseCount + (ring < extra ? 1 : 0);
+    const y = ((ring / Math.max(rings - 1, 1)) - 0.5) * Ht;
+    for (let idx = 0; idx < count; idx++) {
+      const el = ELEMENTS[offset + idx];
+      const ang = (idx / count) * Math.PI * 2 + (ring % 2 ? Math.PI / count : 0);
+      P[el.number] = {
+        x: R * Math.cos(ang),
+        y,
+        z: R * Math.sin(ang),
+      };
+    }
+    offset += count;
+  }
   rotX = rotXTarget = VIEW_ROT.cylinder.rx; rotY = rotYTarget = VIEW_ROT.cylinder.ry;
 }
 
 /* ── Scatter: deterministic 3-D cloud ── */
 function layoutScatter() {
   const { W, H, N } = dim();
-  const R = Math.min(W, H) * 0.38;
-  // Mulberry32 PRNG for determinism
-  let s = 0xdeadbeef;
-  function rng() {
-    s |= 0; s = s + 0x6D2B79F5 | 0;
-    let t = Math.imul(s ^ s >>> 15, 1 | s);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
-  ELEMENTS.forEach(el => {
-    const r   = R * (0.25 + rng() * 0.75);
-    const th  = Math.acos(2 * rng() - 1);
-    const phi = rng() * Math.PI * 2;
+  const R = Math.min(W, H) * 0.46;
+  const golden = Math.PI * (3 - Math.sqrt(5));
+
+  // Evenly distribute points through a sphere. Random radial points tend to
+  // collapse into a central clump; this volume-aware Fibonacci distribution
+  // keeps the scatter open, balanced, and repeatable on every render.
+  ELEMENTS.forEach((el, i) => {
+    const directionT = (i + 0.5) / N;
+    // Permute radial depth independently from latitude to avoid a heavy
+    // lower or upper side of the cloud.
+    const radialT = ((i * 53) % N + 0.5) / N;
+    const radius = R * (0.2 + 0.8 * Math.cbrt(radialT));
+    const yUnit = 1 - 2 * directionT;
+    const ring = Math.sqrt(Math.max(0, 1 - yUnit * yUnit));
+    const angle = i * golden;
     P[el.number] = {
-      x: r * Math.sin(th) * Math.cos(phi),
-      y: r * Math.cos(th),
-      z: r * Math.sin(th) * Math.sin(phi),
+      x: radius * ring * Math.cos(angle) * 1.06,
+      y: radius * yUnit,
+      z: radius * ring * Math.sin(angle),
     };
   });
 }
