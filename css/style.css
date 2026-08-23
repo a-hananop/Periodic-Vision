@@ -718,7 +718,7 @@ header {
   }
   #table-grid .el-card,
   #table-grid .ghost { aspect-ratio: auto; min-height: 22px; }
-  .table-heading { width: min(100%, 560px); margin-bottom: 4px; transform: translateY(-17px); }
+  .table-heading { width: min(100%, 560px); margin-bottom: 4px; transform: translateY(-23px); }
   .table-heading span { font-size: 0.82rem; }
   .table-heading small { font-size: 0.54rem; }
 }
@@ -741,7 +741,7 @@ header {
     min-height: 100%;
     box-sizing: border-box;
   }
-  .table-heading { width: 100%; margin: 0 0 3px; padding: 0 4px; transform: translateY(-16px); }
+  .table-heading { width: 100%; margin: 0 0 3px; padding: 0 4px; transform: translateY(-22px); }
   .table-heading span { font-size: 0.61rem; letter-spacing: 0.16em; }
   .table-heading small { font-size: 0.4rem; letter-spacing: 0.06em; }
   .sep-row { display: none; }
