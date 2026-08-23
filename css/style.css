@@ -103,12 +103,13 @@ header {
   background: rgba(0,0,0,0.4);
   border: 1px solid var(--border);
   border-radius: 8px; padding: 3px;
-  overflow-x: auto; flex-shrink: 0;
+  overflow-x: auto; flex: 1 1 auto; min-width: 0;
+  scrollbar-width: none;
 }
 .vtabs::-webkit-scrollbar { display: none; }
 
 .vtab {
-  padding: 4px 13px; border-radius: 5px;
+  min-height: 28px; padding: 4px 13px; border-radius: 5px;
   border: none; background: transparent;
   color: var(--txt2); font-family: inherit;
   font-size: 0.68rem; letter-spacing: 0.08em;
@@ -216,7 +217,7 @@ header {
 /* =====================================================
    3-D VIEW
    ===================================================== */
-#v-3d { cursor: grab; }
+#v-3d { cursor: grab; touch-action: none; }
 #v-3d:active { cursor: grabbing; }
 
 /* Star/particle canvas behind the scene */
@@ -232,6 +233,7 @@ header {
   perspective: 900px;
   perspective-origin: 50% 50%;
   z-index: 1;
+  overflow: hidden;
 }
 
 /* The rotating world — transform applied by JS */
@@ -252,6 +254,8 @@ header {
   transition: box-shadow 0.15s, border-color 0.15s, opacity 0.3s;
   will-change: left, top, opacity, z-index;
   backface-visibility: visible;
+  user-select: none;
+  touch-action: none;
 }
 
 /* Entry animation for 3-D cards — JS triggers by adding class */
@@ -506,10 +510,14 @@ header {
   #scene .el-card { width: 50px; height: 54px; margin-left: -25px; margin-top: -27px; }
 }
 @media (max-width: 640px) {
+  header { padding: 0 8px; gap: 6px; }
+  .logo { display: none; }
+  .hdr-right { margin-left: 0; gap: 5px; }
+  .search-box { display: none; }
   .el-name, .el-mass { display: none; }
   .el-sym { font-size: 0.88rem; }
   #table-grid { grid-template-columns: repeat(18, minmax(28px, 1fr)); gap: 2px; }
   #scene .el-card { width: 42px; height: 46px; margin-left: -21px; margin-top: -23px; }
-  #search { width: 100px; }
   .ctrl-btn { padding: 4px 8px; font-size: 0.6rem; }
+  .vtab { padding-inline: 10px; }
 }

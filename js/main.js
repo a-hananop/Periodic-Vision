@@ -54,8 +54,10 @@ let searchQ     = '';
 let rotX = -18, rotY = 0;
 // zoom multiplier (1 = default)
 let zoom = 1;
+let zoomTarget = 1;
 
 let dragging = false, lastMX = 0, lastMY = 0;
+let pointerActive = false;
 let autoSpin = true;
 let rafID    = null;        // main render loop
 let starRAF  = null;        // star background loop
@@ -74,7 +76,7 @@ const VIEW_ROT = {
   wave:     { rx: -28, ry: 14 },
   cylinder: { rx:  -8, ry: 0 },
   scatter:  { rx: -15, ry: 0 },
-  pyramid:  { rx: -28, ry: 20 },
+  pyramid:  { rx: -22, ry: 24 },
 };
 
 /* ──────────────────────────────────────────────────────────────
@@ -226,6 +228,19 @@ function dim() {
   return { W, H, N: ELEMENTS.length };
 }
 
+// Keep flat layouts inside the stage.  The old fixed column counts made the
+// outer cards clip on narrow windows and made the apparent shape uneven.
+function flatLayoutMetrics(W, H, preferredCols, rowGap = 12) {
+  const cardStep = 58 + rowGap;
+  const cols = Math.max(7, Math.min(preferredCols, Math.floor((W - 36) / cardStep)));
+  const rows = Math.ceil(ELEMENTS.length / cols);
+  const gX = cols > 1 ? Math.min(78, (W - 36) / (cols - 1)) : 0;
+  // A compact vertical step is intentional on short mobile stages: cards
+  // remain in one centered composition instead of being cut off below it.
+  const gY = Math.min(70, Math.max(36, (H - 56) / Math.max(rows - 1, 1)));
+  return { cols, rows, gX, gY };
+}
+
 /* ── Sphere: Fibonacci lattice ── */
 function layoutSphere() {
   const { W, H, N } = dim();
@@ -265,10 +280,7 @@ function layoutHelix() {
 /* ── Grid: flat grid with z-ripple ── */
 function layoutGrid() {
   const { W, H, N } = dim();
-  const cols = 12;
-  const rows = Math.ceil(N / cols);
-  const gX   = Math.min(72, W / cols * 0.88);
-  const gY   = 70;
+  const { cols, rows, gX, gY } = flatLayoutMetrics(W, H, 12);
   ELEMENTS.forEach((el, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
@@ -283,10 +295,7 @@ function layoutGrid() {
 /* ── Wave: rolling wave surface ── */
 function layoutWave() {
   const { W, H, N } = dim();
-  const cols = 14;
-  const rows = Math.ceil(N / cols);
-  const gX   = Math.min(76, W / cols * 0.9);
-  const gY   = 70;
+  const { cols, rows, gX, gY } = flatLayoutMetrics(W, H, 12);
   let t = 0;
   ELEMENTS.forEach((el, i) => {
     const col = i % cols;
@@ -347,35 +356,31 @@ function layoutScatter() {
 /* ── Pyramid: layered tiers ── */
 function layoutPyramid() {
   const { W, H, N } = dim();
-  const maxSpan = Math.min(W, H) * 0.65;
-  const Ht      = Math.min(H * 0.82, 640);
+  // A real pyramid is built from square horizontal layers.  Each layer
+  // expands in both X and Z, rather than only widening a flat 2-D row.
+  const sides = [1, 2, 3, 4, 5, 6, 7];
+  const layerStep = Math.min(68, Math.max(48, (H - 104) / (sides.length - 1)));
+  const cardStep = Math.min(62, Math.max(44, (W - 96) / 6));
+  let placed = 0;
 
-  // distribute elements into tiers (triangle numbers)
-  const tiers = [];
-  let placed = 0, tier = 1;
-  while (placed < N) {
-    const count = Math.min(tier * tier, N - placed);
-    tiers.push({ start: placed, count, tier });
-    placed += count;
-    tier++;
-  }
-  const T = tiers.length;
+  sides.forEach((side, layer) => {
+    const capacity = side * side;
+    const count = Math.min(capacity, N - placed);
+    const y = (layer - (sides.length - 1) / 2) * layerStep;
 
-  tiers.forEach(({ start, count, tier: t }) => {
-    const progress = (t - 1) / Math.max(T - 1, 1);
-    const y     = (progress - 0.5) * Ht;
-    const span  = maxSpan * progress + 60;
-    const side  = Math.ceil(Math.sqrt(count));
-    const gap   = side > 1 ? span / (side - 1) : 0;
-    for (let k = 0; k < count; k++) {
-      const el  = ELEMENTS[start + k];
-      if (!el) continue;
-      const row = Math.floor(k / side);
-      const col = k % side;
+    // When the last layer is partial, spread its cards evenly over the
+    // square footprint so its outline stays centered instead of leaning.
+    for (let k = 0; k < count; k++, placed++) {
+      const sample = count === capacity
+        ? k
+        : Math.floor((k + 0.5) * capacity / count);
+      const row = Math.floor(sample / side);
+      const col = sample % side;
+      const el = ELEMENTS[placed];
       P[el.number] = {
-        x: (col - (side - 1) / 2) * gap,
+        x: (col - (side - 1) / 2) * cardStep,
         y,
-        z: (row - (side - 1) / 2) * gap,
+        z: (row - (side - 1) / 2) * cardStep,
       };
     }
   });
@@ -414,6 +419,7 @@ function startRender() {
 }
 
 function renderScene() {
+  zoom += (zoomTarget - zoom) * 0.18;
   const radX = rotX * Math.PI / 180;
   const radY = rotY * Math.PI / 180;
   const cX = Math.cos(radX), sX = Math.sin(radX);
@@ -498,7 +504,7 @@ function switchView(next) {
 
       // Set default rotation
       const def = VIEW_ROT[next] || { rx: -18, ry: 0 };
-      rotX = def.rx; rotY = def.ry; zoom = 1;
+      rotX = def.rx; rotY = def.ry; zoom = 1; zoomTarget = 1;
       autoSpin = true;
       spinBtn.textContent = '⏸ spin';
 
@@ -568,7 +574,7 @@ spinBtn.addEventListener('click', () => {
 
 resetBtn.addEventListener('click', () => {
   const def = VIEW_ROT[currentView] || { rx: -18, ry: 0 };
-  rotX = def.rx; rotY = def.ry; zoom = 1;
+  rotX = def.rx; rotY = def.ry; zoom = 1; zoomTarget = 1;
   autoSpin = true;
   spinBtn.textContent = '⏸ spin';
 });
@@ -576,38 +582,44 @@ resetBtn.addEventListener('click', () => {
 /* ──────────────────────────────────────────────────────────────
    DRAG + ZOOM
 ────────────────────────────────────────────────────────────── */
-v3d.addEventListener('mousedown', e => {
-  if (e.target.classList.contains('el-card')) return;
+v3d.addEventListener('pointerdown', e => {
+  if (e.target.closest('.el-card')) return;
+  pointerActive = true;
   dragging = true; autoSpin = false;
   lastMX = e.clientX; lastMY = e.clientY;
+  v3d.setPointerCapture(e.pointerId);
   clearTimeout(resumeTimer);
 });
-window.addEventListener('mousemove', e => {
+v3d.addEventListener('pointermove', e => {
   if (!dragging) return;
   rotY += (e.clientX - lastMX) * 0.36;
   rotX += (e.clientY - lastMY) * 0.36;
   rotX = Math.max(-82, Math.min(82, rotX));
   lastMX = e.clientX; lastMY = e.clientY;
 });
-window.addEventListener('mouseup', () => {
+v3d.addEventListener('pointerup', e => {
   if (!dragging) return;
   dragging = false;
+  pointerActive = false;
+  if (v3d.hasPointerCapture(e.pointerId)) v3d.releasePointerCapture(e.pointerId);
   clearTimeout(resumeTimer);
   resumeTimer = setTimeout(() => { autoSpin = true; spinBtn.textContent = '⏸ spin'; }, 3000);
 });
 
 v3d.addEventListener('wheel', e => {
   e.preventDefault();
-  zoom = Math.max(0.28, Math.min(2.2, zoom - e.deltaY * 0.0008));
+  zoomTarget = Math.max(0.28, Math.min(2.2, zoomTarget - e.deltaY * 0.0008));
 }, { passive: false });
 
 // Touch drag
 v3d.addEventListener('touchstart', e => {
-  if (e.target.classList.contains('el-card')) return;
+  if (pointerActive) return;
+  if (e.target.closest('.el-card')) return;
   dragging = true; autoSpin = false;
   lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
 }, { passive: true });
 window.addEventListener('touchmove', e => {
+  if (pointerActive) return;
   if (!dragging) return;
   rotY += (e.touches[0].clientX - lastMX) * 0.36;
   rotX += (e.touches[0].clientY - lastMY) * 0.36;
@@ -615,6 +627,7 @@ window.addEventListener('touchmove', e => {
   lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
 }, { passive: true });
 window.addEventListener('touchend', () => {
+  if (pointerActive) return;
   dragging = false;
   clearTimeout(resumeTimer);
   resumeTimer = setTimeout(() => { autoSpin = true; }, 3000);
