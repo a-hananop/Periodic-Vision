@@ -52,6 +52,7 @@ let searchQ     = '';
 
 // 3-D rotation (degrees)
 let rotX = -18, rotY = 0;
+let rotXTarget = -18, rotYTarget = 0;
 // zoom multiplier (1 = default)
 let zoom = 1;
 let zoomTarget = 1;
@@ -274,7 +275,7 @@ function layoutHelix() {
       z: R * Math.sin(ang + strand),
     };
   });
-  rotX = VIEW_ROT.helix.rx; rotY = VIEW_ROT.helix.ry;
+  rotX = rotXTarget = VIEW_ROT.helix.rx; rotY = rotYTarget = VIEW_ROT.helix.ry;
 }
 
 /* ── Grid: flat grid with z-ripple ── */
@@ -326,7 +327,7 @@ function layoutCylinder() {
       z: R * Math.sin(ang),
     };
   });
-  rotX = VIEW_ROT.cylinder.rx; rotY = VIEW_ROT.cylinder.ry;
+  rotX = rotXTarget = VIEW_ROT.cylinder.rx; rotY = rotYTarget = VIEW_ROT.cylinder.ry;
 }
 
 /* ── Scatter: deterministic 3-D cloud ── */
@@ -411,7 +412,7 @@ function startRender() {
   function frame(t) {
     const dt = Math.min(t - lastTime, 50);
     lastTime = t;
-    if (autoSpin && !dragging) rotY += dt * 0.022;
+    if (autoSpin && !dragging) rotYTarget += dt * 0.022;
     renderScene();
     rafID = requestAnimationFrame(frame);
   }
@@ -419,6 +420,8 @@ function startRender() {
 }
 
 function renderScene() {
+  rotX += (rotXTarget - rotX) * 0.22;
+  rotY += (rotYTarget - rotY) * 0.22;
   zoom += (zoomTarget - zoom) * 0.18;
   const radX = rotX * Math.PI / 180;
   const radY = rotY * Math.PI / 180;
@@ -455,9 +458,10 @@ function renderScene() {
       ? 0.04
       : Math.max(0.18, 0.4 + normZ * 0.6);
 
-    // Apply — only left/top/zIndex/opacity
-    card.style.left    = sx + 'px';
-    card.style.top     = sy + 'px';
+    // Apply screen position through composited transforms. Updating left/top
+    // here forces layout for all 118 cards on every animation frame.
+    card.style.setProperty('--px', sx.toFixed(2) + 'px');
+    card.style.setProperty('--py', sy.toFixed(2) + 'px');
     card.style.zIndex  = idx;
     card.style.opacity = alpha.toFixed(3);
   });
@@ -504,7 +508,7 @@ function switchView(next) {
 
       // Set default rotation
       const def = VIEW_ROT[next] || { rx: -18, ry: 0 };
-      rotX = def.rx; rotY = def.ry; zoom = 1; zoomTarget = 1;
+      rotX = rotXTarget = def.rx; rotY = rotYTarget = def.ry; zoom = 1; zoomTarget = 1;
       autoSpin = true;
       spinBtn.textContent = '⏸ spin';
 
@@ -574,7 +578,7 @@ spinBtn.addEventListener('click', () => {
 
 resetBtn.addEventListener('click', () => {
   const def = VIEW_ROT[currentView] || { rx: -18, ry: 0 };
-  rotX = def.rx; rotY = def.ry; zoom = 1; zoomTarget = 1;
+  rotX = rotXTarget = def.rx; rotY = rotYTarget = def.ry; zoom = 1; zoomTarget = 1;
   autoSpin = true;
   spinBtn.textContent = '⏸ spin';
 });
@@ -586,15 +590,17 @@ v3d.addEventListener('pointerdown', e => {
   if (e.target.closest('.el-card')) return;
   pointerActive = true;
   dragging = true; autoSpin = false;
+  rotXTarget = rotX;
+  rotYTarget = rotY;
   lastMX = e.clientX; lastMY = e.clientY;
   v3d.setPointerCapture(e.pointerId);
   clearTimeout(resumeTimer);
 });
 v3d.addEventListener('pointermove', e => {
   if (!dragging) return;
-  rotY += (e.clientX - lastMX) * 0.36;
-  rotX += (e.clientY - lastMY) * 0.36;
-  rotX = Math.max(-82, Math.min(82, rotX));
+  rotYTarget += (e.clientX - lastMX) * 0.36;
+  rotXTarget += (e.clientY - lastMY) * 0.36;
+  rotXTarget = Math.max(-82, Math.min(82, rotXTarget));
   lastMX = e.clientX; lastMY = e.clientY;
 });
 v3d.addEventListener('pointerup', e => {
@@ -616,14 +622,16 @@ v3d.addEventListener('touchstart', e => {
   if (pointerActive) return;
   if (e.target.closest('.el-card')) return;
   dragging = true; autoSpin = false;
+  rotXTarget = rotX;
+  rotYTarget = rotY;
   lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
 }, { passive: true });
 window.addEventListener('touchmove', e => {
   if (pointerActive) return;
   if (!dragging) return;
-  rotY += (e.touches[0].clientX - lastMX) * 0.36;
-  rotX += (e.touches[0].clientY - lastMY) * 0.36;
-  rotX = Math.max(-82, Math.min(82, rotX));
+  rotYTarget += (e.touches[0].clientX - lastMX) * 0.36;
+  rotXTarget += (e.touches[0].clientY - lastMY) * 0.36;
+  rotXTarget = Math.max(-82, Math.min(82, rotXTarget));
   lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
 }, { passive: true });
 window.addEventListener('touchend', () => {

@@ -251,8 +251,9 @@ header {
   /* centered on their origin point */
   margin-left: -29px; margin-top: -31px;
   /* NO transform set here — JS sets left/top, we center with margin */
-  transition: box-shadow 0.15s, border-color 0.15s, opacity 0.3s;
-  will-change: left, top, opacity, z-index;
+  transform: translate3d(var(--px, 0px), var(--py, 0px), 0);
+  transition: box-shadow 0.15s, border-color 0.15s;
+  will-change: transform, opacity;
   backface-visibility: visible;
   user-select: none;
   touch-action: none;
