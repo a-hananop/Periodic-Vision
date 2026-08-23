@@ -53,6 +53,8 @@ let searchQ     = '';
 // 3-D rotation (degrees)
 let rotX = -18, rotY = 0;
 let rotXTarget = -18, rotYTarget = 0;
+let waveCols = 14;
+let waveMotion = 0;
 // zoom multiplier (1 = default)
 let zoom = 1;
 let zoomTarget = 1;
@@ -73,7 +75,7 @@ const P = {};   // P[atomicNumber] = {x, y, z}
 const VIEW_ROT = {
   sphere:   { rx: -18, ry: 0 },
   helix:    { rx:   8, ry: 0 },
-  grid:     { rx: -22, ry: 18 },
+  grid:     { rx: -10, ry: 0 },
   wave:     { rx: -12, ry: 12 },
   cylinder: { rx: -16, ry: 40 },
   scatter:  { rx: -15, ry: 0 },
@@ -288,7 +290,9 @@ function layoutGrid() {
     P[el.number] = {
       x: (col - (cols - 1) / 2) * gX,
       y: (row - (rows - 1) / 2) * gY,
-      z: Math.sin(col * 0.55 + row * 0.45) * 140,
+      // Keep the lattice coplanar so every row and column remains aligned.
+      // The scene itself still rotates in 3-D through the shared renderer.
+      z: 0,
     };
   });
 }
@@ -297,6 +301,7 @@ function layoutGrid() {
 function layoutWave() {
   const { W, H, N } = dim();
   const cols = Math.max(12, Math.min(16, Math.floor((W - 96) / 62)));
+  waveCols = cols;
   const rows = Math.ceil(N / cols);
   const gX = Math.min(74, (W - 96) / Math.max(cols - 1, 1));
   const gY = Math.min(64, Math.max(46, (H - 82) / Math.max(rows - 1, 1)));
@@ -439,6 +444,7 @@ function startRender() {
     const dt = Math.min(t - lastTime, 50);
     lastTime = t;
     if (autoSpin && !dragging) rotYTarget += dt * 0.022;
+    if (currentView === 'wave') waveMotion += dt * 0.0018;
     renderScene();
     rafID = requestAnimationFrame(frame);
   }
@@ -462,7 +468,17 @@ function renderScene() {
     const num = +card.dataset.num;
     const p   = P[num];
     if (!p) return;
-    const q = project(p.x * zoom, p.y * zoom, p.z * zoom, cX, sX, cY, sY);
+    let wx = p.x;
+    let wy = p.y;
+    let wz = p.z;
+    if (currentView === 'wave') {
+      const col = (num - 1) % waveCols;
+      const row = Math.floor((num - 1) / waveCols);
+      const phase = (col / Math.max(waveCols - 1, 1)) * Math.PI * 3 + waveMotion + row * 0.08;
+      wy += Math.sin(phase) * 9;
+      wz += Math.cos(phase) * 18;
+    }
+    const q = project(wx * zoom, wy * zoom, wz * zoom, cX, sX, cY, sY);
     projected.push({ card, ...q });
   });
 
