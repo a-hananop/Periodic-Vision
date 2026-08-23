@@ -597,3 +597,35 @@ header {
   .ctrl-btn { padding: 4px 8px; font-size: 0.6rem; }
   .vtab { padding-inline: 10px; }
 }
+
+@media (max-width: 400px) {
+  :root { --hdr-h: 46px; --bot-h: 40px; }
+  header { padding: 0 5px; }
+  .vtabs { gap: 0; padding: 2px; border-radius: 6px; }
+  .vtab { min-height: 24px; padding: 3px 7px; font-size: 0.5rem; letter-spacing: 0.04em; }
+  .hdr-right { gap: 3px; }
+  .ctrl-btn { padding: 3px 5px; font-size: 0.5rem; }
+
+  #v-table { padding: 5px 4px 7px; }
+  #table-grid { min-width: 0; width: 100%; grid-template-columns: repeat(18, minmax(0, 1fr)); gap: 1px; }
+  #table-grid .el-card { border-radius: 3px; padding: 1px; }
+  #table-grid .el-num { font-size: 0.26rem; padding-left: 1px; }
+  #table-grid .el-sym { font-size: 0.55rem; }
+
+  #v-3d.helix-mode #scene .el-card,
+  #v-3d.sphere-mode #scene .el-card,
+  #v-3d.cylinder-mode #scene .el-card,
+  #v-3d.scatter-mode #scene .el-card,
+  #v-3d.pyramid-mode #scene .el-card,
+  #v-3d #scene .el-card {
+    width: 30px;
+    height: 34px;
+    margin-left: -15px;
+    margin-top: -17px;
+  }
+  #v-3d .el-num { font-size: 0.3rem; }
+  #v-3d .el-sym { font-size: 0.7rem; }
+
+  .bot-panel { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; padding: 3px 6px; gap: 4px; }
+  .cat-btn { flex: 0 0 auto; padding: 3px 7px; font-size: 0.48rem; }
+}

@@ -402,7 +402,7 @@ function layoutPyramid() {
   // expands in both X and Z, rather than only widening a flat 2-D row.
   const sides = [1, 2, 3, 4, 5, 6, 7];
   const layerStep = Math.min(68, Math.max(48, (H - 104) / (sides.length - 1)));
-  const cardStep = Math.min(62, Math.max(44, (W - 96) / 6));
+  const cardStep = Math.min(62, Math.max(20, (W - 36) / 6));
   let placed = 0;
 
   sides.forEach((side, layer) => {
