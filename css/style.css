@@ -252,6 +252,28 @@ header {
    ===================================================== */
 #v-table { overflow-y: auto; overflow-x: auto; padding: 8px 10px 10px; }
 
+.table-heading {
+  width: min(1380px, 100%);
+  margin: 2px auto 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+  color: rgba(183,255,220,0.72);
+  font-family: 'Orbitron', monospace;
+  letter-spacing: 0.28em;
+  text-shadow: 0 0 12px rgba(0,255,127,0.28);
+}
+.table-heading span { font-size: 0.78rem; }
+.table-heading small {
+  color: rgba(106,154,122,0.72);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+}
+
 #table-grid {
   display: grid;
   grid-template-columns: repeat(18, minmax(38px, 1fr));
@@ -675,6 +697,25 @@ header {
   #v-3d.scatter-mode #scene .el-card { width: 34px; height: 38px; margin-left: -17px; margin-top: -19px; }
   .ctrl-btn { padding: 4px 8px; font-size: 0.6rem; }
   .vtab { padding-inline: 10px; }
+
+  #v-table {
+    display: grid;
+    grid-template-rows: max-content max-content;
+    align-content: center;
+    justify-items: center;
+    min-height: 100%;
+    box-sizing: border-box;
+  }
+  #table-grid {
+    min-width: max(360px, calc(100vw - 16px));
+    width: max(360px, calc(100vw - 16px));
+    grid-template-columns: repeat(18, minmax(0, 1fr));
+    gap: 1px;
+    margin-inline: 0;
+  }
+  #table-grid .el-card,
+  #table-grid .ghost { aspect-ratio: auto; min-height: 22px; }
+  .table-heading { width: min(100%, 560px); margin-bottom: 4px; }
 }
 
 @media (max-width: 400px) {
@@ -688,21 +729,32 @@ header {
   #v-table {
     padding: 5px 4px 7px;
     overflow-x: auto;
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-rows: max-content max-content;
+    align-content: center;
+    justify-items: center;
+    min-height: 100%;
+    box-sizing: border-box;
   }
+  .table-heading { flex: 0 0 auto; width: 100%; margin: 0 0 3px; padding: 0 4px; }
+  .table-heading span { font-size: 0.58rem; letter-spacing: 0.16em; }
+  .table-heading small { font-size: 0.38rem; letter-spacing: 0.06em; }
+  .sep-row { display: none; }
   /* An 18-column data table needs a readable minimum canvas on phones.
      The stage scrolls horizontally instead of shrinking symbols to dots. */
   #table-grid {
     min-width: 360px;
     width: 360px;
     grid-template-columns: repeat(18, minmax(0, 1fr));
+    grid-auto-rows: 20px;
     gap: 1px;
     margin-left: 0;
     margin-right: 0;
     flex: 0 0 360px;
   }
   #table-grid .el-card { border-radius: 3px; padding: 1px; }
+  #table-grid .el-card,
+  #table-grid .ghost { height: 20px; aspect-ratio: auto; }
   #table-grid .el-num { font-size: 0.26rem; padding-left: 1px; }
   #table-grid .el-sym { font-size: 0.55rem; }
 
