@@ -74,10 +74,10 @@ const P = {};   // P[atomicNumber] = {x, y, z}
 // default rotation per view
 const VIEW_ROT = {
   sphere:   { rx: -18, ry: 0 },
-  helix:    { rx:   8, ry: 0 },
+  helix:    { rx:   8, ry: 38 },
   grid:     { rx: -10, ry: 0 },
   wave:     { rx: -12, ry: 12 },
-  cylinder: { rx: -16, ry: 40 },
+  cylinder: { rx: -34, ry: 36 },
   scatter:  { rx: -15, ry: 0 },
   pyramid:  { rx: -22, ry: 24 },
 };
@@ -203,6 +203,15 @@ function buildTable() {
 ────────────────────────────────────────────────────────────── */
 function build3D() {
   scene.innerHTML = '';
+  if (currentView === 'helix') {
+    for (let i = 0; i + 1 < ELEMENTS.length; i += 2) {
+      const rung = document.createElement('div');
+      rung.className = 'helix-rung';
+      rung.dataset.a = ELEMENTS[i].number;
+      rung.dataset.b = ELEMENTS[i + 1].number;
+      scene.appendChild(rung);
+    }
+  }
   ELEMENTS.forEach((el, i) => {
     const card = makeCard(el);
     // start invisible; stagger pop-in
@@ -247,7 +256,7 @@ function flatLayoutMetrics(W, H, preferredCols, rowGap = 12) {
 /* ── Sphere: Fibonacci lattice ── */
 function layoutSphere() {
   const { W, H, N } = dim();
-  const R = Math.min(W, H) * 0.36;
+  const R = Math.min(W, H) * 0.50;
   const φ = Math.PI * (3 - Math.sqrt(5));
   ELEMENTS.forEach((el, i) => {
     const θ = Math.acos(1 - 2 * (i + 0.5) / N);
@@ -263,11 +272,13 @@ function layoutSphere() {
 /* ── Helix: double helix ── */
 function layoutHelix() {
   const { W, H, N } = dim();
-  const R    = Math.min(W, H) * 0.24;
-  const Ht   = Math.min(H * 0.84, 660);
-  const revs = 4.5;
+  const R    = Math.min(W, H) * 0.34;
+  const Ht   = Math.min(H * 0.92, 700);
+  const revs = 5.25;
+  const pairs = Math.ceil(N / 2);
   ELEMENTS.forEach((el, i) => {
-    const t   = i / (N - 1);
+    const pair = Math.floor(i / 2);
+    const t   = pair / Math.max(pairs - 1, 1);
     const ang = t * revs * Math.PI * 2;
     // two strands offset by π
     const strand = i % 2 === 0 ? 0 : Math.PI;
@@ -283,13 +294,14 @@ function layoutHelix() {
 /* ── Grid: flat grid with z-ripple ── */
 function layoutGrid() {
   const { W, H, N } = dim();
-  const { cols, rows, gX, gY } = flatLayoutMetrics(W, H, 12);
+  const { cols, rows, gX, gY } = flatLayoutMetrics(W, H, 14);
+  const step = Math.min(gX, gY);
   ELEMENTS.forEach((el, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
     P[el.number] = {
-      x: (col - (cols - 1) / 2) * gX,
-      y: (row - (rows - 1) / 2) * gY,
+      x: (col - (cols - 1) / 2) * step,
+      y: (row - (rows - 1) / 2) * step,
       // Keep the lattice coplanar so every row and column remains aligned.
       // The scene itself still rotates in 3-D through the shared renderer.
       z: 0,
@@ -331,8 +343,8 @@ function layoutWave() {
 /* ── Cylinder: stacked rings ── */
 function layoutCylinder() {
   const { W, H, N } = dim();
-  const R      = Math.min(W, H) * 0.34;
-  const Ht     = Math.min(H * 0.72, 520);
+  const R      = Math.min(W, H) * 0.36;
+  const Ht     = Math.min(H * 0.76, 540);
   // Eight broad rings make the circular cross-section readable instead of
   // producing a dense rectangular wall of nearly coincident cards.
   const rings   = 8;
@@ -362,7 +374,7 @@ function layoutCylinder() {
 /* ── Scatter: deterministic 3-D cloud ── */
 function layoutScatter() {
   const { W, H, N } = dim();
-  const R = Math.min(W, H) * 0.46;
+  const R = Math.min(W, H) * 0.50;
   const golden = Math.PI * (3 - Math.sqrt(5));
 
   // Evenly distribute points through a sphere. Random radial points tend to
@@ -370,8 +382,6 @@ function layoutScatter() {
   // keeps the scatter open, balanced, and repeatable on every render.
   ELEMENTS.forEach((el, i) => {
     const directionT = (i + 0.5) / N;
-    // Permute radial depth independently from latitude to avoid a heavy
-    // lower or upper side of the cloud.
     const radialT = ((i * 53) % N + 0.5) / N;
     const radius = R * (0.2 + 0.8 * Math.cbrt(radialT));
     const yUnit = 1 - 2 * directionT;
@@ -484,10 +494,30 @@ function renderScene() {
 
   // 2. Sort back → front (painter's algorithm)
   projected.sort((a, b) => a.z - b.z);
-
-  // 3. Apply position + depth effects
   const maxZ = Math.max(...projected.map(p => Math.abs(p.z))) || 1;
 
+  // Project helix rungs with the same camera math as the cards so the
+  // connecting structure stays locked to both strands during movement.
+  scene.querySelectorAll('.helix-rung').forEach(rung => {
+    const a = P[+rung.dataset.a];
+    const b = P[+rung.dataset.b];
+    if (!a || !b) return;
+    const qa = project(a.x * zoom, a.y * zoom, a.z * zoom, cX, sX, cY, sY);
+    const qb = project(b.x * zoom, b.y * zoom, b.z * zoom, cX, sX, cY, sY);
+    const sa = FOV / (FOV + qa.z + 300);
+    const sb = FOV / (FOV + qb.z + 300);
+    const ax = qa.x * sa, ay = qa.y * sa;
+    const bx = qb.x * sb, by = qb.y * sb;
+    const dx = bx - ax, dy = by - ay;
+    rung.style.left = ax.toFixed(2) + 'px';
+    rung.style.top = ay.toFixed(2) + 'px';
+    rung.style.width = Math.hypot(dx, dy).toFixed(2) + 'px';
+    rung.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+    rung.style.opacity = Math.max(0.12, 0.24 + ((qa.z + qb.z) / 2 + maxZ) / (4 * maxZ));
+    rung.style.zIndex = Math.min(100, Math.floor((qa.z + qb.z) / 2));
+  });
+
+  // 3. Apply position + depth effects
   projected.forEach(({ card, x, y, z }, idx) => {
     // Perspective scale for positioning only (NOT card size)
     const sc    = FOV / (FOV + z + 300);
@@ -534,6 +564,11 @@ function switchView(next) {
   setTimeout(() => {
     currentView = next;
     viewLabel.textContent = next;
+    v3d.classList.toggle('helix-mode', next === 'helix');
+    v3d.classList.toggle('sphere-mode', next === 'sphere');
+    v3d.classList.toggle('cylinder-mode', next === 'cylinder');
+    v3d.classList.toggle('scatter-mode', next === 'scatter');
+    v3d.classList.toggle('pyramid-mode', next === 'pyramid');
 
     if (next === 'table') {
       legend.classList.remove('hidden');
