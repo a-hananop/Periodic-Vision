@@ -263,15 +263,36 @@ header {
   text-align: center;
   color: rgba(183,255,220,0.72);
   font-family: 'Orbitron', monospace;
+  font-weight: 700;
   letter-spacing: 0.28em;
   text-shadow: 0 0 12px rgba(0,255,127,0.28);
 }
-.table-heading span { font-size: 0.78rem; }
+.table-heading span {
+  position: relative;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: #a8f8cf;
+  text-shadow: 0 0 7px rgba(0,255,127,0.55), 0 0 20px rgba(0,255,127,0.22);
+  animation: headingGlow 3.2s ease-in-out infinite;
+}
 .table-heading small {
-  color: rgba(106,154,122,0.72);
+  color: rgba(142,215,170,0.86);
   font-family: 'Share Tech Mono', monospace;
   font-size: 0.52rem;
+  font-weight: 700;
   letter-spacing: 0.12em;
+  text-shadow: 0 0 8px rgba(0,255,127,0.3);
+  animation: subtitleGlow 3.2s ease-in-out 0.35s infinite;
+}
+
+@keyframes headingGlow {
+  0%, 100% { opacity: 0.82; text-shadow: 0 0 7px rgba(0,255,127,0.45), 0 0 16px rgba(0,255,127,0.16); }
+  50% { opacity: 1; text-shadow: 0 0 10px rgba(0,255,127,0.8), 0 0 28px rgba(0,255,127,0.32); }
+}
+@keyframes subtitleGlow {
+  0%, 100% { opacity: 0.68; }
+  50% { opacity: 1; text-shadow: 0 0 11px rgba(0,255,127,0.5); }
 }
 
 #table-grid {
