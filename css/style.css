@@ -493,11 +493,52 @@ header {
 .view-label {
   position: absolute; top: 12px; left: 50%;
   transform: translateX(-50%);
+  isolation: isolate;
+  padding: 2px 12px;
   font-family: 'Orbitron', monospace;
-  font-size: 0.7rem; letter-spacing: 0.3em;
-  color: rgba(0,255,127,0.3);
+  font-size: 0.74rem; font-weight: 800; letter-spacing: 0.34em;
+  color: #9dffd0;
+  text-shadow: 0 0 5px #baffdf, 0 0 12px rgba(0,255,127,0.95), 0 0 28px rgba(0,218,255,0.5);
   text-transform: uppercase; pointer-events: none;
   z-index: 5;
+  animation: shapeLabelGlow 3.2s ease-in-out infinite;
+}
+.view-label::before,
+.view-label::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+.view-label::before {
+  inset: 35% -18% -25%;
+  border-radius: 999px;
+  background: linear-gradient(105deg, transparent 5%, rgba(0,255,160,0.8) 45%, rgba(117,229,255,0.95) 52%, transparent 78%);
+  filter: blur(10px);
+  opacity: 0.75;
+  animation: shapeLabelSweep 3.8s ease-in-out infinite;
+}
+.view-label::after {
+  inset: -3px -8%;
+  border-top: 1px solid rgba(102,255,204,0.48);
+  border-bottom: 1px solid rgba(74,192,255,0.3);
+  clip-path: polygon(7% 50%, 14% 0, 86% 0, 93% 50%, 86% 100%, 14% 100%);
+  filter: drop-shadow(0 0 7px rgba(0,255,160,0.7));
+  opacity: 0.65;
+  animation: shapeLabelFacet 4.5s ease-in-out infinite;
+}
+
+@keyframes shapeLabelGlow {
+  0%, 100% { opacity: 0.78; text-shadow: 0 0 5px #baffdf, 0 0 12px rgba(0,255,127,0.72), 0 0 24px rgba(0,218,255,0.32); }
+  50% { opacity: 1; text-shadow: 0 0 7px #fff, 0 0 16px rgba(0,255,127,1), 0 0 34px rgba(0,218,255,0.68); }
+}
+@keyframes shapeLabelSweep {
+  0%, 100% { transform: translateX(-22%) scaleX(0.7); opacity: 0.3; }
+  50% { transform: translateX(22%) scaleX(1.1); opacity: 0.95; }
+}
+@keyframes shapeLabelFacet {
+  0%, 100% { transform: scaleX(0.9); opacity: 0.35; }
+  50% { transform: scaleX(1.05); opacity: 0.9; }
 }
 
 .controls-hint {
